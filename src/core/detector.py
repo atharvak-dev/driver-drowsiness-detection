@@ -7,7 +7,11 @@ import threading
 from streamlit_webrtc import VideoProcessorBase
 
 # Local imports
-from config.config import EAR_THRESHOLD, CONSEC_FRAMES, MODEL_PATH, ALARM_FILE
+import collections
+import numpy as np
+from config.config import (EAR_THRESHOLD, CONSEC_FRAMES, MODEL_PATH, ALARM_FILE, 
+                           SMOOTHING_WINDOW, CALIBRATION_FRAMES, 
+                           PERCLOS_WINDOW, PERCLOS_THRESHOLD)
 from src.core.ear import calculate_ear
 from src.utils.audio import play_alarm_sound
 
@@ -17,7 +21,7 @@ class DrowsinessDetector(VideoProcessorBase):
         try:
             base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
             options = vision.FaceLandmarkerOptions(base_options=base_options,
-                                                   output_face_blendshapes=False,
+                                                   output_face_blendshapes=True,
                                                    output_facial_transformation_matrixes=False,
                                                    num_faces=1)
             self.detector = vision.FaceLandmarker.create_from_options(options)
@@ -28,6 +32,16 @@ class DrowsinessDetector(VideoProcessorBase):
         self.frame_count = 0
         self.drowsy = False
         self.alarm_thread = None
+        self.ear_history = collections.deque(maxlen=SMOOTHING_WINDOW)
+        
+        # Calibration
+        self.is_calibrating = True
+        self.calibration_frames = 0
+        self.calibration_data = []
+        self.ear_threshold = EAR_THRESHOLD  # Start with default, update after calibration
+        
+        # PERCLOS
+        self.closed_history = collections.deque(maxlen=PERCLOS_WINDOW)
 
     def recv(self, frame):
         try:
@@ -49,7 +63,11 @@ class DrowsinessDetector(VideoProcessorBase):
 
                     left_ear = calculate_ear(landmarks, left_eye)
                     right_ear = calculate_ear(landmarks, right_eye)
-                    ear = (left_ear + right_ear) / 2.0
+                    raw_ear = (left_ear + right_ear) / 2.0
+
+                    # Smoothing
+                    self.ear_history.append(raw_ear)
+                    ear = np.mean(self.ear_history)
                     
                     # Visualize eye landmarks for debugging
                     for idx in left_eye:
@@ -57,23 +75,54 @@ class DrowsinessDetector(VideoProcessorBase):
                     for idx in right_eye:
                         cv2.circle(img, landmarks[idx], 2, (0, 255, 0), -1)
 
-                    if ear < EAR_THRESHOLD:
-                        self.frame_count += 1
-                    else:
-                        self.frame_count = 0
-                        self.drowsy = False
+                    if self.is_calibrating:
+                        self.calibration_data.append(ear)
+                        self.calibration_frames += 1
+                        
+                        progress = int((self.calibration_frames / CALIBRATION_FRAMES) * 100)
+                        cv2.putText(img, f"CALIBRATING... {progress}%", (30, 60),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                        cv2.putText(img, "Please look straight ahead", (30, 100),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-                    if self.frame_count >= CONSEC_FRAMES:
-                        self.drowsy = True
-                        cv2.putText(img, "DROWSY!", (30, 60),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 4)
-                        # Play alarm in separate thread
-                        if self.alarm_thread is None or not self.alarm_thread.is_alive():
-                            self.alarm_thread = threading.Thread(target=play_alarm_sound, args=(ALARM_FILE,))
-                            self.alarm_thread.start()
+                        if self.calibration_frames >= CALIBRATION_FRAMES:
+                            baseline_ear = np.mean(self.calibration_data)
+                            # Set threshold to 80% of baseline
+                            self.ear_threshold = baseline_ear * 0.8
+                            self.is_calibrating = False
+                            print(f"Calibration Complete. Baseline: {baseline_ear:.3f}, New Threshold: {self.ear_threshold:.3f}")
+                    
                     else:
-                        cv2.putText(img, f"EAR: {ear:.2f}", (30, 30),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                        # Normal Detection Logic
+                        is_closed = ear < self.ear_threshold
+                        self.closed_history.append(1 if is_closed else 0)
+                        
+                        # Calculate PERCLOS
+                        perclos = np.mean(self.closed_history) if len(self.closed_history) > 0 else 0
+                        
+                        if is_closed:
+                            self.frame_count += 1
+                        else:
+                            self.frame_count = 0
+                            self.drowsy = False
+
+                        # Trigger ALARM if Micro-Sleep (Time) OR Fatigue (PERCLOS)
+                        if self.frame_count >= CONSEC_FRAMES or perclos > PERCLOS_THRESHOLD:
+                            self.drowsy = True
+                            
+                            reason = "MICRO-SLEEP!" if self.frame_count >= CONSEC_FRAMES else "FATIGUE DETECTED!"
+                            cv2.putText(img, reason, (30, 60),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+                            
+                            # Play alarm in separate thread
+                            if self.alarm_thread is None or not self.alarm_thread.is_alive():
+                                self.alarm_thread = threading.Thread(target=play_alarm_sound, args=(ALARM_FILE,))
+                                self.alarm_thread.start()
+                        else:
+                            cv2.putText(img, f"EAR: {ear:.2f} | Thresh: {self.ear_threshold:.2f}", (30, 30),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                            cv2.putText(img, f"PERCLOS: {perclos:.2%}", (30, 60),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
             return av.VideoFrame.from_ndarray(img, format="bgr24")
         except Exception as e:
