@@ -1,205 +1,208 @@
-# Driver Drowsiness Detection Key Features
-- Real-time monitoring of driver's eyes using a camera
-- Fatigue and drowsiness detection algorithm
-- Timely alerts to prevent the driver from falling asleep
-- Non-intrusive and easy to set up
-- Progressive Web App (PWA) support - Install like a native app!
-- Offline functionality with caching
-- Fast loading with optimized performance on System
+# 👁️ Advanced Driver Drowsiness Detection System
 
-<p align="center">
-  <img src="https://img.shields.io/github/stars/Gagandeep-2003/Driver-Drowsiness-Detection-System?style=social" alt="GitHub stars" />
-  <img src="https://img.shields.io/github/forks/Gagandeep-2003/Driver-Drowsiness-Detection-System?style=social" alt="GitHub forks" />
-  <img src="https://img.shields.io/github/issues/Gagandeep-2003/Driver-Drowsiness-Detection-System" alt="GitHub issues" />
-</p>
+![AI Powered](https://img.shields.io/badge/AI-Powered-blueviolet?style=for-the-badge&logo=openai)
+![Python](https://img.shields.io/badge/Made%20with-Python-blue?style=for-the-badge&logo=python)
+![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)
+![PWA](https://img.shields.io/badge/V2.0-Progressive%20Web%20App-orange?style=for-the-badge&logo=pwa)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)
 
-
-## Project Overview
-The Driver Drowsiness Detection System is a non-intrusive solution designed to monitor and detect signs of fatigue in drivers. By analyzing eye states through a camera feed, the system can identify early symptoms of drowsiness and issue timely warnings, helping to prevent accidents caused by driver fatigue. This project aims to enhance road safety, especially for those driving long distances who may not recognize their own drowsiness in time.
-
-## ⭐ Support the Project
-
-If you find this project helpful, please consider giving it a **star** ⭐ on GitHub!  
-It helps others discover the project and motivates us to keep improving it.
-
-👉 Click the ⭐ button at the top-right of this page!
-
-[![GitHub stars](https://img.shields.io/github/stars/Gagandeep-2003/Driver-Drowsiness-Detection-System.svg?style=social)](https://github.com/Gagandeep-2003/Driver-Drowsiness-Detection-System/stargazers)
-
-
-## Key Features
-- Real-time monitoring of driver’s eyes using a camera
-- Fatigue and drowsiness detection algorithm
-- Timely alerts to prevent the driver from falling asleep
-- Non-intrusive and easy to set up
-
-## Technologies Used
-- Python
-- OpenCV
-- Dlib or Mediapipe (for facial landmark detection)
-- NumPy, Pandas
-
-  
- ## Optional: create a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-
-## Setup Instructions
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Gagandeep-2003/Driver-Drowsiness-Detection-System.git
-   cd Driver-Drowsiness-Detection-System
-   ```
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Download the model:**
-
-    The dlib facial landmark model is required for blink detection. Download it from the link below, unzip it, and place the `shape_predictor_68_face_landmarks.dat` file inside the `/models` directory.
-    * **Download Link**: [shape_predictor_68_face_landmarks.dat](https://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2)
-
-4. **Run the application:**
-   ```bash
-   python main.py
-   ```
-   (Replace `main.py` with the actual entry point if different.)
-
-## Usage
-- Ensure your webcam is connected.
-- Run the application as shown above.
-- The system will start monitoring your eyes and alert you if signs of drowsiness are detected.
-
-## Folder Structure
-```
-driver-drowsiness-detection-system/
-│
-├── main.py                  # Entry point for the system
-├── blinkDetect.py            # Drowsiness detection script
-├── lanedetection.py          # Lane detection module
-├── ui.py                     # User interface handling
-├── requirements.txt          # Python dependencies
-├── CONTRIBUTING.md           # Contribution guidelines
-├── DEPLOYMENT.md             # Deployment instructions
-├── PWA_README.md              # PWA installation & usage
-├── PWA_IMPLEMENTATION.md      # Technical details of PWA
-│
-├── models/                   # Pre-trained ML models
-│   └── haarcascade_frontalface_default.xml
-│
-├── streamlit_app/            # Web app (Streamlit + PWA)
-│   ├── streamlit_app.py
-│   ├── streamlit_app_pwa.py
-│   ├── manifest.json
-│   ├── sw.js
-│   └── icons/                # App icons for PWA
-│
-├── assets/                   # Images, audio, and test files
-│   ├── alarm.wav
-│   ├── alarm.mp3
-│   ├── eye.PNG
-│   ├── eye_aspect_ratio.PNG
-│   ├── face.PNG
-│   └── test_image.jpg
-
-```
-
-## Contribution Guidelines
-We welcome contributions to improve this project! To get started:
-1. **Star** ⭐ this repository to show your support.
-2. **Fork** 🍴 the repository to your own GitHub account.
-3. Create a new branch for your feature or bugfix.
-4. Make your changes and commit them with clear messages.
-5. Push your branch to your forked repo.
-6. Open a Pull Request describing your changes.
+> **"Technology that watches over you, so you can watch the road."**
 
 ---
 
-## 📋 Project Board & Roadmap
+<div align="center">
 
-We are actively tracking progress and assigning tasks for **GSSoC'25** in our GitHub Project Board.  
-You can see which issues are **To Do**, **In Progress**, or **Completed**, and pick one to start contributing.
+## 🌟 The Visionary Creator
 
-🚀 **[View the GSSoC 2025 Roadmap Project →](https://github.com/users/Gagandeep-2003/projects/1)**
+This cutting-edge safety solution was **concepted, architected, and engineered solely by**:
 
-> ℹ️ To work on an issue:
-> 1. Comment on the issue stating your interest.
-> 2. We’ll assign it to you under the appropriate GSSoC’25 level.
-> 3. Track your progress via the Project Board.
+# **SARAJI**
 
-## 🌐 Streamlit Web App (New Feature!)
+With a passion for saving lives through code, **Saraji** has pushed the boundaries of Computer Vision and Real-Time AI to create a system that is not just a tool, but a guardian. 
 
-This app version uses Streamlit + Mediapipe to detect drowsiness via webcam directly in the browser.
+*"I built this system to ensure that every journey ends safely. By leveraging the power of Artificial Intelligence, we can detect the unseen danger of fatigue before it's too late."* - **Saraji**
 
-### Usage:
+</div>
+
+---
+
+## 📖 Table of Contents
+
+1. [🚀 Project Overview](#-project-overview)
+2. [🧠 Technical Deep Dive & Architecture](#-technical-deep-dive--architecture)
+3. [🔢 Mathematical Foundation (EAR)](#-mathematical-foundation-ear)
+4. [📱 Progressive Web App (PWA) Engineering](#-progressive-web-app-pwa-engineering)
+5. [📂 Project Structure](#-project-structure)
+6. [🛠️ Installation & Setup](#-installation--setup)
+7. [💻 Usage Guide](#-usage-guide)
+8. [🔮 Future Roadmap](#-future-roadmap)
+
+---
+
+## 🚀 Project Overview
+
+The **Driver Drowsiness Detection System** is a mission-critical AI application designed to combat the subtle yet deadly threat of driver fatigue. Unlike traditional systems that rely on vehicle telematics, this solution uses **non-intrusive Computer Vision** to monitor the driver's physiological state directly.
+
+### Core Capabilities
+*   **Real-Time Monitoring**: Analyzes video feed at 30+ FPS to track eye movements.
+*   **Micro-Sleep Detection**: Identifies blink patterns indicative of "micro-sleeps" (1-2 seconds of unconsciousness).
+*   **Offline First**: Engineered as a **Progressive Web App (PWA)** to function entirely without internet access—crucial for remote driving.
+*   **Cross-Platform**: Runs natively on Windows, macOS, Linux, Android, and iOS.
+
+---
+
+## 🧠 Technical Deep Dive & Architecture
+
+The system follows a high-performance **Pipeline Architecture**:
+
+```mermaid
+graph LR
+    A[Webcam Input] --> B(Face Detection)
+    B --> C{Face Found?}
+    C -- Yes --> D[Facial Landmark Extraction]
+    C -- No --> A
+    D --> E[Eye Coordinates Isolation]
+    E --> F[EAR Calculation]
+    F --> G{EAR < Threshold?}
+    G -- Yes --> H[Start Timer]
+    G -- No --> I[Reset Timer]
+    H --> J{Time > Limit?}
+    J -- Yes --> K[🚨 TRIGGER ALARM]
+    J -- No --> A
+```
+
+### Key Technologies
+*   **OpenCV**: For ultra-fast image processing and frame manipulation.
+*   **Mediapipe / Dlib**: For robust 68-point facial landmark detection, robust partially occluded faces.
+*   **Streamlit**: For the reactive frontend interface.
+*   **Service Workers**: Custom JavaScript workers handling asset caching and background processes.
+
+---
+
+## 🔢 Mathematical Foundation (EAR)
+
+The core logic relies on the **Eye Aspect Ratio (EAR)**, a scalar value that describes the "openness" of the eye.
+We map 6 distinct points around each eye:
+
+*   **P1, P5**: Vertical points (Left)
+*   **P2, P4**: Vertical points (Right)
+*   **P0, P3**: Horizontal points
+
+The formula derived and implemented in `src/core/ear.py` is:
+
+$$ EAR = \frac{||P_1 - P_5|| + ||P_2 - P_4||}{2 \times ||P_0 - P_3||} $$
+
+*   **Numerator**: The sum of the two vertical distances between the eyelids.
+*   **Denominator**: Twice the horizontal distance between the eye corners.
+
+**The Logic**:
+- When the eye is **OPEN**, the numerator is large, and EAR is high (~0.30+).
+- When the eye is **CLOSED**, the vertical distance approaches zero, and EAR falls (~0.05).
+- If EAR stays below `0.20` for `> 2 seconds`, the system classifies it as drowsiness.
+
+---
+
+## � Progressive Web App (PWA) Engineering
+
+This is not just a Python script; it is a fully installable **Web Application**.
+
+### How it Works
+The PWA implementation (found in `src/app/pwa_utils.py`) injects a custom **Service Worker** (`sw.js`).
+1.  **Manifest Injection**: The app dynamically generates a `manifest.json` that defines the app's name, icons, and theme color (`#ff6b6b`).
+2.  **Asset Caching**: The Service Worker intercepts network requests and caches critical assets (HTML, CSS, JS, Models).
+3.  **Offline Fallback**: If the network fails, the Service Worker serves the application from the local cache, ensuring 100% uptime in remote areas.
+4.  **Install Prompt**: An event listener captures the `beforeinstallprompt` event to show a custom "Install App" button.
+
+---
+
+## 📂 Project Structure
+
+A clean, modular architecture ensures scalability and maintainability.
+
 ```bash
-# Standard web app
-streamlit run streamlit_app/streamlit_app.py
+driver-drowsiness-detection/
+├── src/
+│   ├── app/
+│   │   ├── app.py              # Main UI Logic
+│   │   └── pwa_utils.py        # PWA & Service Worker Injection
+│   ├── core/
+│   │   ├── detector.py         # Face & Landmark Detection Logic
+│   │   └── ear.py              # Math: EAR Calculation
+│   └── utils/                  # Helper utilities
+├── assets/                     # Audio files & Icons
+│   ├── alarm.wav               # High-frequency alert sound
+│   └── alarm.mp3
+├── streamlit_app/
+│   └── streamlit_app_pwa.py    # PWA Entry Point
+├── README.md                   # You are here
+└── requirements.txt            # Dependencies
+```
 
-# Or run the enhanced PWA version
+---
+
+## �️ Installation & Setup
+
+### Prerequisites
+*   Python 3.8 or higher
+*   Webcam
+
+### step-by-Step Guide
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/YourUsername/Driver-Drowsiness-Detection-System.git
+    cd Driver-Drowsiness-Detection-System
+    ```
+
+2.  **Create Virtual Environment** (Recommended)
+    ```bash
+    python -m venv venv
+    # Windows
+    venv\Scripts\activate
+    # Mac/Linux
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+---
+
+## 💻 Usage Guide
+
+### Mode 1: The Modern PWA Experience (Recommended)
+This runs the application with full offline support and installation capabilities.
+
+```bash
 streamlit run streamlit_app/streamlit_app_pwa.py
 ```
+*   **To Install**: Click the "Install App" button in the top right or check your browser's address bar for the install icon.
+*   **Mobile**: Open in Chrome/Safari -> Share -> Add to Home Screen.
 
-## 📱 Progressive Web App (PWA) Support
+### Mode 2: Standard Python Script
+For quick testing or legacy support.
 
-**NEW!** This project now supports Progressive Web App functionality! Install it like a native app on your device.
-
-### PWA Features:
-- 📱 **Installable**: Add to home screen on mobile/desktop
-- 🚀 **Fast Loading**: Cached resources for better performance  
-- 🔄 **Offline Support**: Basic functionality without internet
-- 📲 **App-like Experience**: Full-screen, native app behavior
-
-### Quick PWA Installation:
-1. **Mobile**: Open in browser → Menu → "Add to Home Screen"
-2. **Desktop**: Look for install icon in address bar → Click "Install"
-
-📖 **[Complete PWA Guide](PWA_README.md)** - Detailed installation and usage instructions
-
-Dependencies:
-Install using:
 ```bash
-pip install -r requirements.txt
+python run_app.py
 ```
-
-Features:
-- Real-time Eye Aspect Ratio (EAR) monitoring
-- Drowsiness warning overlay
-- Web-based UI with live video
-- **PWA installable web app**
-- **Offline caching support**
-
-If you have any questions or need guidance, feel free to open an issue or ask in the discussions!
 
 ---
 
-## 👥 Contributors
+## 🔮 Future Roadmap
 
-Thanks to these wonderful people for contributing 💖
+**Saraji's Vision** for the future of this project includes:
 
-<!-- contrib.rocks: auto-updating avatars grid -->
-[![Contributors](https://contrib.rocks/image?repo=Gagandeep-2003/driver-drowsiness-detection-system)](https://github.com/Gagandeep-2003/driver-drowsiness-detection-system/graphs/contributors)
+*   [ ] **Yawn Detection**: correlating mouth aspect ratio (MAR) with EAR for higher accuracy.
+*   [ ] **Head Pose Estimation**: Detecting distraction by monitoring head rotation (pitch/yaw/roll).
+*   [ ] **Cloud Sync**: Optional syncing of drowsiness events to a fleet management dashboard.
+*   [ ] **Night Mode**: Enhancing detection in low-light environments using histogram equalization.
 
-<!-- Vaunt.dev: auto-updating contributors graph (SVG) -->
-<p align="center">
-  <a href="https://github.com/Gagandeep-2003/driver-drowsiness-detection-system/graphs/contributors">
-    <img 
-      src="https://api.vaunt.dev/v1/github/entities/Gagandeep-2003/repositories/driver-drowsiness-detection-system/contributors?format=svg&limit=54" 
-      width="900" 
-      height="400" 
-      alt="Contributors Graph by Vaunt.dev" 
-    />
-  </a>
-</p>
+---
 
+> *Developed with pride by **Saraji**.*
+>
+> *Saving lives, one line of code at a time.*
 
-
-Thank you for your interest in improving the Driver Drowsiness Detection System! Your contributions are greatly appreciated.
-
-<p align="center">
-  <a href="#top" style="font-size: 18px; padding: 8px 16px; display: inline-block; border: 1px solid #ccc; border-radius: 6px; text-decoration: none;">
-    ⬆️ Back to Top
-  </a>
-</p>
-# driver-drowsiness-detection
+![Footer](https://capsule-render.vercel.app/api?type=waving&color=auto&height=200&section=footer&text=Driver%20Safety%20System&fontSize=50)
