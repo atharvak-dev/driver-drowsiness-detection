@@ -256,16 +256,24 @@ class GuardianDriveDetector(VideoProcessorBase):
         if not os.path.exists(model_path):
             model_path = os.path.join('models', 'face_landmarker.task')
         
-        base_options = python.BaseOptions(model_asset_path=model_path)
-        options = vision.FaceLandmarkerOptions(
-            base_options=base_options,
-            output_face_blendshapes=False,
-            output_facial_transformation_matrixes=False,
-            num_faces=1
-        )
-        self.detector = vision.FaceLandmarker.create_from_options(options)
-        self.enhanced_detector = EnhancedDriverDetector()
-        self.alert_system = SecureAlertSystem()
+        if not os.path.exists(model_path):
+            st.error(f"❌ Model not found at {model_path}")
+            raise FileNotFoundError(f"face_landmarker.task not found")
+        
+        try:
+            base_options = python.BaseOptions(model_asset_path=model_path)
+            options = vision.FaceLandmarkerOptions(
+                base_options=base_options,
+                output_face_blendshapes=False,
+                output_facial_transformation_matrixes=False,
+                num_faces=1
+            )
+            self.detector = vision.FaceLandmarker.create_from_options(options)
+            self.enhanced_detector = EnhancedDriverDetector()
+            self.alert_system = SecureAlertSystem()
+        except Exception as e:
+            st.error(f"❌ Failed to initialize detector: {e}")
+            raise
         
         # Session tracking for insurance
         self.session_start = time.time()
@@ -279,99 +287,125 @@ class GuardianDriveDetector(VideoProcessorBase):
         
     def recv(self, frame):
         global alarm_thread
-        img = frame.to_ndarray(format="bgr24")
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
-        detection_result = self.detector.detect(mp_image)
-        
-        if detection_result.face_landmarks:
-            for face_landmarks in detection_result.face_landmarks:
-                h, w, _ = img.shape
-                landmarks = [(int(l.x * w), int(l.y * h)) for l in face_landmarks]
-                
-                # Process with enhanced detector
-                state, metrics = self.enhanced_detector.process_frame(landmarks, (h, w))
-                
-                # Update state tracking
-                if state == self.current_state:
-                    self.state_duration += 1/30  # Assuming 30 FPS
-                else:
-                    self.current_state = state
-                    self.state_duration = 0
-                
-                # Store metrics
-                self.metrics_history.append(metrics)
-                if len(self.metrics_history) > 100:
-                    self.metrics_history.pop(0)
-                
-                # Get location for risk mapping
-                location = {"lat": 28.6139, "lng": 77.2090}  # Mock GPS
-                current_time = time.time()
-                
-                # Handle critical states with full GuardianDrive AI integration
-                if state in [DriverState.DROWSY, DriverState.ASLEEP, DriverState.INTOXICATED]:
-                    if current_time - self.last_alert_time > 5.0:
-                        self.total_alerts += 1
-                        
-                        if state == DriverState.DROWSY:
-                            self.drowsy_events += 1
-                        
-                        # 1. Log to Risk Mapping System
-                        severity = 5 if state == DriverState.ASLEEP else 4 if state == DriverState.INTOXICATED else 3
-                        risk_mapper.log_risk_event(
-                            location["lat"], location["lng"],
-                            state.value.lower(), severity
-                        )
-                        
-                        # 2. Trigger Multi-Stakeholder Alerts for severe cases
-                        if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
-                            stakeholder_alerts.trigger_coordinated_response(
-                                driver_state=state.value,
-                                location=location,
-                                vehicle_speed=60,
-                                duration=self.state_duration
-                            )
-                        
-                        # 3. Regular Alert System
-                        self.alert_system.trigger_alert(
-                            driver_state=state.value,
-                            metrics={
-                                'ear': metrics.ear,
-                                'mar': metrics.mar,
-                                'perclos': metrics.perclos,
-                                'confidence': 0.85
-                            },
-                            duration=self.state_duration,
-                            confidence=0.85
-                        )
-                        
-                        self.last_alert_time = current_time
+        try:
+            img = frame.to_ndarray(format="bgr24")
+            
+            # --- LIGHTING NORMALIZATION (For Indian Skin Tones) ---
+            # Apply CLAHE to L channel of LAB color space
+            lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl,a,b))
+            img_enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+            
+            # Use enhanced image for detection
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(img_enhanced, cv2.COLOR_BGR2RGB))
+            detection_result = self.detector.detect(mp_image)
+            
+            if detection_result.face_landmarks:
+                for face_landmarks in detection_result.face_landmarks:
+                    h, w, _ = img.shape
+                    landmarks = [(int(l.x * w), int(l.y * h)) for l in face_landmarks]
                     
-                    # Play alarm for critical states
-                    if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
-                        if alarm_thread is None or not alarm_thread.is_alive():
-                            alarm_thread = threading.Thread(target=play_alarm)
-                            alarm_thread.start()
-                
-                # Visualize landmarks and metrics
-                self.draw_enhanced_visualization(img, landmarks, metrics, state)
+                    # Process with enhanced detector
+                    state, metrics = self.enhanced_detector.process_frame(landmarks, (h, w))
+                    
+                    # Update state tracking
+                    if state == self.current_state:
+                        self.state_duration += 1/30  # Assuming 30 FPS
+                    else:
+                        self.current_state = state
+                        self.state_duration = 0
+                    
+                    # Store metrics
+                    self.metrics_history.append(metrics)
+                    if len(self.metrics_history) > 100:
+                        self.metrics_history.pop(0)
+                    
+                    # Get location for risk mapping
+                    location = {"lat": 28.6139, "lng": 77.2090}  # Mock GPS
+                    current_time = time.time()
+                    
+                    # Handle critical states with full GuardianDrive AI integration
+                    if state in [DriverState.DROWSY, DriverState.ASLEEP, DriverState.INTOXICATED]:
+                        if current_time - self.last_alert_time > 5.0:
+                            self.total_alerts += 1
+                            
+                            if state == DriverState.DROWSY:
+                                self.drowsy_events += 1
+                            
+                            # 1. Log to Risk Mapping System
+                            severity = 5 if state == DriverState.ASLEEP else 4 if state == DriverState.INTOXICATED else 3
+                            risk_mapper.log_risk_event(
+                                location["lat"], location["lng"],
+                                state.value.lower(), severity
+                            )
+                            
+                            # 2. Trigger Multi-Stakeholder Alerts for severe cases
+                            if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
+                                stakeholder_alerts.trigger_coordinated_response(
+                                    driver_state=state.value,
+                                    location=location,
+                                    vehicle_speed=60,
+                                    duration=self.state_duration
+                                )
+                            
+                            # 3. Regular Alert System
+                            self.alert_system.trigger_alert(
+                                driver_state=state.value,
+                                metrics={
+                                    'ear': metrics.ear,
+                                    'mar': metrics.mar,
+                                    'perclos': metrics.perclos,
+                                    'confidence': 0.85
+                                },
+                                duration=self.state_duration,
+                                confidence=0.85
+                            )
+                            
+                            self.last_alert_time = current_time
+                        
+                        # Play alarm for critical states
+                        if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
+                            if alarm_thread is None or not alarm_thread.is_alive():
+                                alarm_thread = threading.Thread(target=play_alarm)
+                                alarm_thread.start()
+                    
+                    # Visualize landmarks and metrics
+                    self.draw_enhanced_visualization(img, landmarks, metrics, state)
+        except Exception as e:
+            cv2.putText(img, f"Error: {str(e)[:40]}", (30, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            print(f"Detection error: {e}")
         
         return av.VideoFrame.from_ndarray(img, format="bgr24")
     
     def draw_enhanced_visualization(self, img, landmarks, metrics, state):
         """Draw enhanced visualization with all metrics"""
-        # Draw eye landmarks
-        left_eye = landmarks[362:374] if len(landmarks) > 373 else []
-        right_eye = landmarks[33:46] if len(landmarks) > 45 else []
+        # MediaPipe face landmarker has 478 landmarks
+        # Draw ALL eye landmarks for visibility
+        # Left eye: 33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246
+        # Right eye: 362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398
         
-        for point in left_eye + right_eye:
-            cv2.circle(img, point, 2, (0, 255, 0), -1)
+        left_eye_indices = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
+        right_eye_indices = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
         
-        # Draw mouth landmarks for yawning detection
-        mouth_landmarks = landmarks[48:68] if len(landmarks) > 67 else []
-        for point in mouth_landmarks:
-            cv2.circle(img, point, 1, (255, 0, 0), -1)
+        # Draw left eye
+        for idx in left_eye_indices:
+            if idx < len(landmarks):
+                cv2.circle(img, landmarks[idx], 2, (0, 255, 0), -1)
+        
+        # Draw right eye
+        for idx in right_eye_indices:
+            if idx < len(landmarks):
+                cv2.circle(img, landmarks[idx], 2, (0, 255, 0), -1)
+        
+        # Draw mouth landmarks
+        mouth_indices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88]
+        for idx in mouth_indices:
+            if idx < len(landmarks):
+                cv2.circle(img, landmarks[idx], 1, (255, 0, 0), -1)
         
         # State indicator with color coding
         state_colors = {

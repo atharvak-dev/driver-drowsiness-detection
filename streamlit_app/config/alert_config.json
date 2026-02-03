@@ -1,0 +1,35 @@
+{
+  "driver_id": "DRIVER_001",
+  "vehicle_id": "VEH_001",
+  "emergency_contacts": [
+    {
+      "name": "Emergency Contact",
+      "phone": "+91XXXXXXXXXX",
+      "email": "emergency@example.com",
+      "relationship": "Family",
+      "priority": 1
+    }
+  ],
+  "authorities": {
+    "police_control_room": {
+      "endpoint": "https://police-api.gov.in/alerts",
+      "api_key": "YOUR_API_KEY",
+      "enabled": false
+    },
+    "traffic_control": {
+      "endpoint": "https://traffic-control.gov.in/incidents",
+      "api_key": "YOUR_API_KEY",
+      "enabled": false
+    }
+  },
+  "alert_thresholds": {
+    "drowsy_duration": 3.0,
+    "critical_duration": 10.0,
+    "intoxication_confidence": 0.8
+  },
+  "privacy": {
+    "encrypt_data": true,
+    "anonymize_location": false,
+    "data_retention_days": 30
+  }
+}

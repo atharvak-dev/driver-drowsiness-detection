@@ -1,0 +1,32 @@
+{
+  "family_contacts": [
+    {
+      "name": "Primary Contact",
+      "phone": "+91XXXXXXXXXX",
+      "priority": 1
+    },
+    {
+      "name": "Secondary Contact",
+      "phone": "+91XXXXXXXXXX",
+      "priority": 2
+    }
+  ],
+  "emergency_services": {
+    "police": {
+      "api_endpoint": "https://police-emergency.gov.in/api/incident",
+      "api_key": "YOUR_POLICE_API_KEY",
+      "enabled": false
+    },
+    "ambulance": {
+      "api_endpoint": "https://ambulance-108.gov.in/api/request",
+      "api_key": "YOUR_AMBULANCE_API_KEY",
+      "enabled": false
+    }
+  },
+  "alert_rules": {
+    "family_alert_threshold": "moderate",
+    "police_alert_threshold": "severe",
+    "ambulance_alert_threshold": "critical",
+    "auto_verify_critical": true
+  }
+}

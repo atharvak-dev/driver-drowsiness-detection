@@ -222,16 +222,7 @@ class SecureAlertSystem:
     
     def create_emergency_message(self, alert: AlertData, contact: EmergencyContact) -> str:
         """Create user-friendly emergency message"""
-        severity_emoji = {
-            "LOW": "⚠️",
-            "MEDIUM": "⚠️",
-            "HIGH": "🚨",
-            "CRITICAL": "🆘"
-        }
-        
-        emoji = severity_emoji.get(alert.severity, "⚠️")
-        
-        message = f"""{emoji} DRIVER ALERT {emoji}
+        message = f"""DRIVER ALERT
         
 Driver: {alert.driver_id}
 Vehicle: {alert.vehicle_id}
@@ -254,7 +245,7 @@ Please check on the driver immediately.
         self.alert_queue.put(alert)
         
         # Immediate console alert
-        print(f"\n🚨 DRIVER ALERT TRIGGERED 🚨")
+        print(f"\nDRIVER ALERT TRIGGERED")
         print(f"State: {driver_state}")
         print(f"Severity: {alert.severity}")
         print(f"Time: {alert.timestamp}")

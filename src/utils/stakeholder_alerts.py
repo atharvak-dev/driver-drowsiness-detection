@@ -225,7 +225,7 @@ class MultiStakeholderAlertSystem:
         incident = self.create_incident(driver_state, location, vehicle_speed, 
                                        duration, airbag_deployed)
         
-        print(f"\n🚨 COORDINATED EMERGENCY RESPONSE TRIGGERED 🚨")
+        print(f"\nCOORDINATED EMERGENCY RESPONSE TRIGGERED")
         print(f"Incident ID: {incident.incident_id}")
         print(f"Severity: {incident.severity.upper()}")
         print(f"Driver State: {driver_state}")
@@ -244,16 +244,7 @@ class MultiStakeholderAlertSystem:
     
     def _create_family_message(self, incident: Incident, contact: Dict) -> str:
         """Create family alert message"""
-        severity_emoji = {
-            "minor": "⚠️",
-            "moderate": "⚠️",
-            "severe": "🚨",
-            "critical": "🆘"
-        }
-        
-        emoji = severity_emoji.get(incident.severity, "⚠️")
-        
-        message = f"""{emoji} GUARDIANRIVE ALERT {emoji}
+        message = f"""GUARDIANDRIVE ALERT
 
 {contact['name']}, your family member's vehicle has detected a safety concern.
 
@@ -266,7 +257,7 @@ Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(incident.timestamp))}
 """
         
         if incident.severity in ["severe", "critical"]:
-            message += "⚠️ Emergency services have been notified.\n"
+            message += "Emergency services have been notified.\n"
         
         message += "\nPlease check on them immediately.\n- GuardianDrive AI Safety System"
         
