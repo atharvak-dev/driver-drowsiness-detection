@@ -16,11 +16,11 @@
 
 This cutting-edge safety solution was **concepted, architected, and engineered solely by**:
 
-# **SARAJI**
+# **Atharva Karval**
 
-With a passion for saving lives through code, **Saraji** has pushed the boundaries of Computer Vision and Real-Time AI to create a system that is not just a tool, but a guardian. 
+With a passion for saving lives through code, **Atharva Karval** has pushed the boundaries of Computer Vision and Real-Time AI to create a system that is not just a tool, but a guardian. 
 
-*"I built this system to ensure that every journey ends safely. By leveraging the power of Artificial Intelligence, we can detect the unseen danger of fatigue before it's too late."* - **Saraji**
+*"I built this system to ensure that every journey ends safely. By leveraging the power of Artificial Intelligence, we can detect the unseen danger of fatigue before it's too late."* - **Atharva Karval**
 
 </div>
 
@@ -192,7 +192,7 @@ python run_app.py
 
 ## 🔮 Future Roadmap
 
-**Saraji's Vision** for the future of this project includes:
+**Atharva Karval's Vision** for the future of this project includes:
 
 *   [ ] **Yawn Detection**: correlating mouth aspect ratio (MAR) with EAR for higher accuracy.
 *   [ ] **Head Pose Estimation**: Detecting distraction by monitoring head rotation (pitch/yaw/roll).
@@ -201,7 +201,7 @@ python run_app.py
 
 ---
 
-> *Developed with pride by **Saraji**.*
+> *Developed with pride by **Atharva Karval**.*
 >
 > *Saving lives, one line of code at a time.*
 
