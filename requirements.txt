@@ -87,3 +87,12 @@ aiofiles>=0.7.0,<1.0.0  # For async file serving
 # - For macOS users, install Xcode command line tools: xcode-select --install
 # - Linux users may need: sudo apt-get install cmake libopenblas-dev liblapack-dev
 # ====================================================================
+
+# Environment variable management
+python-dotenv>=0.19.0,<2.0.0
+
+# HTTP requests for API calls
+requests>=2.28.0,<3.0.0
+
+# Twilio SMS service
+twilio>=8.0.0,<9.0.0

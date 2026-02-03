@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Enhanced Streamlit App with PWA Support
-This version includes proper static file serving for PWA assets
+GuardianDrive AI - Integrated Safety Platform
+Complete multimodal detection with risk mapping, insurance bridge, and stakeholder alerts
 """
 
 import streamlit as st
 import cv2
-import mediapipe as mp
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -17,12 +16,27 @@ import threading
 import time
 import base64
 import os
-import mimetypes
-from pathlib import Path
+import sys
 
-# Eye aspect ratio threshold and consecutive frames
+# Add src to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from src.core.multimodal_detector import EnhancedDriverDetector, DriverState
+from src.utils.alert_system import SecureAlertSystem
+from src.utils.risk_mapping import RiskMappingSystem
+from src.utils.insurance_bridge import InsuranceDataBridge, DrivingSession
+from src.utils.stakeholder_alerts import MultiStakeholderAlertSystem
+
+# Global instances - integrated into the system
+risk_mapper = RiskMappingSystem()
+insurance_bridge = InsuranceDataBridge("DRIVER_001")
+stakeholder_alerts = MultiStakeholderAlertSystem()
+
+# Enhanced thresholds based on research
 EAR_THRESHOLD = 0.25
+MAR_THRESHOLD = 0.6  # Yawning threshold
 CONSEC_FRAMES = 20
+PERCLOS_THRESHOLD = 0.8
 
 # PWA Static Files Setup
 def serve_pwa_files():
@@ -235,22 +249,34 @@ def calculate_ear(landmarks, eye_indices):
     ear = (v1 + v2) / (2.0 * h)
     return ear
 
-class DrowsinessDetector(VideoProcessorBase):
+class GuardianDriveDetector(VideoProcessorBase):
     def __init__(self):
-        # Load Face Landmarker - adjust path relative to project root
+        # Load Face Landmarker
         model_path = os.path.join('..', 'models', 'face_landmarker.task')
         if not os.path.exists(model_path):
             model_path = os.path.join('models', 'face_landmarker.task')
         
         base_options = python.BaseOptions(model_asset_path=model_path)
-        options = vision.FaceLandmarkerOptions(base_options=base_options,
-                                               output_face_blendshapes=False,
-                                               output_facial_transformation_matrixes=False,
-                                               num_faces=1)
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            output_face_blendshapes=False,
+            output_facial_transformation_matrixes=False,
+            num_faces=1
+        )
         self.detector = vision.FaceLandmarker.create_from_options(options)
-        self.frame_count = 0
-        self.drowsy = False
-
+        self.enhanced_detector = EnhancedDriverDetector()
+        self.alert_system = SecureAlertSystem()
+        
+        # Session tracking for insurance
+        self.session_start = time.time()
+        self.session_id = f"SESSION_{int(self.session_start)}"
+        self.current_state = DriverState.SOBER_ALERT
+        self.state_duration = 0
+        self.last_alert_time = 0
+        self.total_alerts = 0
+        self.drowsy_events = 0
+        self.metrics_history = []
+        
     def recv(self, frame):
         global alarm_thread
         img = frame.to_ndarray(format="bgr24")
@@ -262,42 +288,128 @@ class DrowsinessDetector(VideoProcessorBase):
         if detection_result.face_landmarks:
             for face_landmarks in detection_result.face_landmarks:
                 h, w, _ = img.shape
-                # face_landmarks is already a list of landmarks in Tasks API
                 landmarks = [(int(l.x * w), int(l.y * h)) for l in face_landmarks]
-
-                # Left and right eyes
-                left_eye = [362, 385, 387, 263, 373, 380]
-                right_eye = [33, 160, 158, 133, 153, 144]
-
-                left_ear = calculate_ear(landmarks, left_eye)
-                right_ear = calculate_ear(landmarks, right_eye)
-                ear = (left_ear + right_ear) / 2.0
                 
-                # Visualize eye landmarks for debugging
-                for idx in left_eye:
-                    cv2.circle(img, landmarks[idx], 2, (0, 255, 0), -1)
-                for idx in right_eye:
-                    cv2.circle(img, landmarks[idx], 2, (0, 255, 0), -1)
-
-                if ear < EAR_THRESHOLD:
-                    self.frame_count += 1
+                # Process with enhanced detector
+                state, metrics = self.enhanced_detector.process_frame(landmarks, (h, w))
+                
+                # Update state tracking
+                if state == self.current_state:
+                    self.state_duration += 1/30  # Assuming 30 FPS
                 else:
-                    self.frame_count = 0
-                    self.drowsy = False
-
-                if self.frame_count >= CONSEC_FRAMES:
-                    self.drowsy = True
-                    cv2.putText(img, "DROWSY!", (30, 60),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 4)
-                    # Play alarm in separate thread
-                    if alarm_thread is None or not alarm_thread.is_alive():
-                        alarm_thread = threading.Thread(target=play_alarm)
-                        alarm_thread.start()
-                else:
-                    cv2.putText(img, f"EAR: {ear:.2f}", (30, 30),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
+                    self.current_state = state
+                    self.state_duration = 0
+                
+                # Store metrics
+                self.metrics_history.append(metrics)
+                if len(self.metrics_history) > 100:
+                    self.metrics_history.pop(0)
+                
+                # Get location for risk mapping
+                location = {"lat": 28.6139, "lng": 77.2090}  # Mock GPS
+                current_time = time.time()
+                
+                # Handle critical states with full GuardianDrive AI integration
+                if state in [DriverState.DROWSY, DriverState.ASLEEP, DriverState.INTOXICATED]:
+                    if current_time - self.last_alert_time > 5.0:
+                        self.total_alerts += 1
+                        
+                        if state == DriverState.DROWSY:
+                            self.drowsy_events += 1
+                        
+                        # 1. Log to Risk Mapping System
+                        severity = 5 if state == DriverState.ASLEEP else 4 if state == DriverState.INTOXICATED else 3
+                        risk_mapper.log_risk_event(
+                            location["lat"], location["lng"],
+                            state.value.lower(), severity
+                        )
+                        
+                        # 2. Trigger Multi-Stakeholder Alerts for severe cases
+                        if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
+                            stakeholder_alerts.trigger_coordinated_response(
+                                driver_state=state.value,
+                                location=location,
+                                vehicle_speed=60,
+                                duration=self.state_duration
+                            )
+                        
+                        # 3. Regular Alert System
+                        self.alert_system.trigger_alert(
+                            driver_state=state.value,
+                            metrics={
+                                'ear': metrics.ear,
+                                'mar': metrics.mar,
+                                'perclos': metrics.perclos,
+                                'confidence': 0.85
+                            },
+                            duration=self.state_duration,
+                            confidence=0.85
+                        )
+                        
+                        self.last_alert_time = current_time
+                    
+                    # Play alarm for critical states
+                    if state in [DriverState.ASLEEP, DriverState.INTOXICATED]:
+                        if alarm_thread is None or not alarm_thread.is_alive():
+                            alarm_thread = threading.Thread(target=play_alarm)
+                            alarm_thread.start()
+                
+                # Visualize landmarks and metrics
+                self.draw_enhanced_visualization(img, landmarks, metrics, state)
+        
         return av.VideoFrame.from_ndarray(img, format="bgr24")
+    
+    def draw_enhanced_visualization(self, img, landmarks, metrics, state):
+        """Draw enhanced visualization with all metrics"""
+        # Draw eye landmarks
+        left_eye = landmarks[362:374] if len(landmarks) > 373 else []
+        right_eye = landmarks[33:46] if len(landmarks) > 45 else []
+        
+        for point in left_eye + right_eye:
+            cv2.circle(img, point, 2, (0, 255, 0), -1)
+        
+        # Draw mouth landmarks for yawning detection
+        mouth_landmarks = landmarks[48:68] if len(landmarks) > 67 else []
+        for point in mouth_landmarks:
+            cv2.circle(img, point, 1, (255, 0, 0), -1)
+        
+        # State indicator with color coding
+        state_colors = {
+            DriverState.SOBER_ALERT: (0, 255, 0),
+            DriverState.DROWSY: (0, 255, 255),
+            DriverState.ASLEEP: (0, 0, 255),
+            DriverState.INTOXICATED: (255, 0, 255)
+        }
+        
+        color = state_colors.get(state, (255, 255, 255))
+        
+        # Main state display
+        cv2.putText(img, f"State: {state.value}", (30, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+        
+        # Metrics display
+        y_offset = 60
+        metrics_text = [
+            f"EAR: {metrics.ear:.3f}",
+            f"MAR: {metrics.mar:.3f}",
+            f"PERCLOS: {metrics.perclos:.2f}",
+            f"Blink Rate: {metrics.blink_rate:.1f}/min",
+            f"Head Pose: P{metrics.head_pose[0]:.1f} Y{metrics.head_pose[1]:.1f} R{metrics.head_pose[2]:.1f}",
+            f"Gaze Dev: {metrics.gaze_deviation:.2f}",
+            f"Duration: {self.state_duration:.1f}s"
+        ]
+        
+        for text in metrics_text:
+            cv2.putText(img, text, (30, y_offset),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            y_offset += 25
+        
+        # Alert indicator
+        if state != DriverState.SOBER_ALERT:
+            cv2.rectangle(img, (10, 10), (img.shape[1]-10, 50), color, 3)
+            if state == DriverState.ASLEEP:
+                cv2.putText(img, "CRITICAL ALERT!", (img.shape[1]//2-100, 35),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
 
 # Main Streamlit app
 def main():
@@ -307,75 +419,198 @@ def main():
     
     # Set page config
     st.set_page_config(
-        page_title="Driver Drowsiness Detection", 
-        layout="centered",
-        page_icon="🚗",
-        initial_sidebar_state="collapsed"
+        page_title="GuardianDrive AI", 
+        layout="wide",
+        page_icon="🛡️",
+        initial_sidebar_state="expanded"
     )
     
     # Serve PWA files
     serve_pwa_files()
     
-    # App header
-    st.title("🚗 Driver Drowsiness Detection")
-    st.markdown("**Real-time drowsiness detection using computer vision**")
+    # Sidebar Navigation
+    with st.sidebar:
+        st.markdown("### 🛡️ GuardianDrive AI")
+        st.markdown("**Connected Safety Platform**")
+        st.markdown("---")
+        
+        page = st.radio("📍 Navigation", [
+            "🚗 Live Detection",
+            "🗺️ Risk Mapping",
+            "💼 Insurance Bridge",
+            "🚨 Alert System",
+            "📊 Statistics"
+        ], index=0)
+        
+        st.markdown("---")
+        st.markdown("**🔒 Privacy:** 100% Local")
+        st.markdown("**⚡ Status:** 🟢 Active")
     
-    # PWA status indicator
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("ℹ️ PWA Info"):
-            st.info("This app supports offline use when installed!")
-    
-    # Installation guide
-    with st.expander("📱 Install as Mobile App", expanded=False):
-        st.markdown("""
-        ### Install this Progressive Web App for the best experience:
-        
-        **📱 On Mobile:**
-        - **Chrome/Edge**: Tap menu → "Add to Home Screen"
-        - **Safari**: Tap share → "Add to Home Screen"
-        
-        **💻 On Desktop:**
-        - **Chrome/Edge**: Click install icon in address bar
-        - Or look for "Install App" button
-        
-        **✨ Benefits:**
-        - 🚀 Faster loading
-        - 📱 App-like experience
-        - 🔒 Works offline
-        - 💾 Cached for speed
-        """)
+    # Page routing
+    if page == "🚗 Live Detection":
+        render_live_detection()
+    elif page == "🗺️ Risk Mapping":
+        render_risk_mapping()
+    elif page == "💼 Insurance Bridge":
+        render_insurance_bridge()
+    elif page == "🚨 Alert System":
+        render_alert_system()
+    elif page == "📊 Statistics":
+        render_statistics()
+
+def render_live_detection():
+    """Render live detection page"""
+    st.title("🛡️ GuardianDrive AI - Live Detection")
+    st.markdown("**Real-time multimodal driver state monitoring with integrated safety features**")
     
     # Main camera interface
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 🎥 Live Camera Feed")
+        webrtc_streamer(
+            key="guardiandrive-detection",
+            video_processor_factory=GuardianDriveDetector,
+            media_stream_constraints={"video": True, "audio": False},
+            async_processing=True,
+        )
+    
+    with col2:
+        st.markdown("### 📊 Live Metrics")
+        st.metric("Detection States", "4")
+        st.metric("AI Processing", "Local")
+        st.metric("Privacy", "🔒 Secure")
+        st.metric("Status", "🟢 Active")
+        
+        st.markdown("---")
+        st.markdown("**🎯 Features Active:**")
+        st.markdown("- ✅ Multimodal Detection")
+        st.markdown("- ✅ Risk Mapping")
+        st.markdown("- ✅ Stakeholder Alerts")
+        st.markdown("- ✅ Insurance Tracking")
+    
+    # Enhanced metrics display
     st.markdown("---")
-    st.markdown("### Live Detection")
-    st.markdown("Allow camera access to start drowsiness detection.")
+    st.markdown("### 📊 Advanced Detection Metrics")
     
-    # Run webcam with Streamlit
-    webrtc_streamer(
-        key="drowsiness-app",
-        video_processor_factory=DrowsinessDetector,
-        media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-    )
-    
-    # Additional info
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("EAR Threshold", f"{EAR_THRESHOLD}")
+        st.metric("PERCLOS Threshold", f"{PERCLOS_THRESHOLD}")
     with col2:
+        st.metric("MAR Threshold", f"{MAR_THRESHOLD}")
         st.metric("Alert Frames", f"{CONSEC_FRAMES}")
     with col3:
-        st.metric("Status", "🟢 Ready")
+        st.metric("Detection States", "4")
+        st.metric("Multimodal", "✅ Active")
+    with col4:
+        st.metric("Alert System", "🔒 Secure")
+        st.metric("Privacy", "🛡️ Local")
+
+def render_risk_mapping():
+    """Render risk mapping page"""
+    st.title("🗺️ Predictive Risk Mapping")
+    st.markdown("**Community-driven micro-risk zone heatmaps**")
     
-    # Footer with PWA info
-    st.markdown("---")
-    st.markdown(
-        "<small>💡 **Tip**: Install this app for offline access and better performance!</small>", 
-        unsafe_allow_html=True
-    )
+    stats = risk_mapper.get_statistics()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Zones Monitored", stats["total_zones_monitored"])
+    col2.metric("Total Incidents", stats["total_incidents"])
+    col3.metric("High Risk Zones", stats["high_risk_zones"])
+    col4.metric("Data Points", stats["data_points"])
+    
+    st.markdown("### 🎯 Risk Score Lookup")
+    col1, col2 = st.columns(2)
+    lat = col1.number_input("Latitude", value=28.6139, format="%.4f")
+    lng = col2.number_input("Longitude", value=77.2090, format="%.4f")
+    
+    if st.button("Check Risk Score"):
+        risk_info = risk_mapper.get_risk_score(lat, lng)
+        risk_colors = {"low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴", "unknown": "⚪"}
+        st.markdown(f"### {risk_colors.get(risk_info['risk_level'], '⚪')} Risk Level: {risk_info['risk_level'].upper()}")
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Risk Score", f"{risk_info['score']:.2f}/5")
+        col2.metric("Incidents", risk_info['incidents'])
+
+def render_insurance_bridge():
+    """Render insurance bridge page"""
+    st.title("💼 Insurance Data Bridge")
+    st.markdown("**Secure behavior-based insurance integration**")
+    
+    tab1, tab2 = st.tabs(["Driver Profile", "Premium Calculator"])
+    
+    with tab1:
+        if st.button("Generate API Key"):
+            new_key = insurance_bridge.generate_api_key("Demo Insurer")
+            st.success(f"API Key: {new_key}")
+        
+        if st.button("Get Driver Profile"):
+            demo_key = insurance_bridge.generate_api_key("Demo")
+            profile = insurance_bridge.get_driver_profile(demo_key)
+            if profile:
+                st.json(profile)
+            else:
+                st.warning("No driving data available")
+    
+    with tab2:
+        st.markdown("### 💰 Premium Recommendation")
+        demo_key = insurance_bridge.generate_api_key("Demo")
+        recommendation = insurance_bridge.get_premium_recommendation(demo_key)
+        
+        if recommendation:
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Base Premium", f"₹{recommendation['base_premium']:,.0f}")
+            col2.metric("Discount", f"{recommendation['discount_percentage']}%")
+            col3.metric("Final Premium", f"₹{recommendation['adjusted_premium']:,.0f}")
+
+def render_alert_system():
+    """Render alert system page"""
+    st.title("🚨 Multi-Stakeholder Alert System")
+    st.markdown("**Coordinated emergency response ecosystem**")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### 👨👩👧👦 Family Contacts")
+        st.info("2 contacts configured")
+    with col2:
+        st.markdown("#### 🚨 Emergency Services")
+        st.warning("Demo Mode (APIs Disabled)")
+    
+    st.markdown("### 🧪 Test Alert")
+    test_state = st.selectbox("Driver State", ["Drowsy", "Asleep", "Drunk"])
+    if st.button("🚨 Trigger Test Alert"):
+        location = {"lat": 28.6139, "lng": 77.2090}
+        response = stakeholder_alerts.trigger_coordinated_response(
+            driver_state=test_state, location=location, vehicle_speed=60, duration=5.0
+        )
+        st.json(response)
+
+def render_statistics():
+    """Render statistics page"""
+    st.title("📊 System Statistics")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 🗺️ Risk Mapping")
+        stats = risk_mapper.get_statistics()
+        st.metric("Zones", stats["total_zones_monitored"])
+        st.metric("Incidents", stats["total_incidents"])
+    
+    with col2:
+        st.markdown("### 💼 Insurance")
+        demo_key = insurance_bridge.generate_api_key("Demo")
+        profile = insurance_bridge.get_driver_profile(demo_key)
+        if profile:
+            st.metric("Safety Score", f"{profile['average_safety_score']:.1f}")
+            st.metric("Distance", f"{profile['total_distance_km']:.1f} km")
+    
+    with col3:
+        st.markdown("### 🚨 Alerts")
+        st.metric("Active Incidents", len(stakeholder_alerts.active_incidents))
+        st.metric("System Status", "🟢 Online")
 
 if __name__ == "__main__":
     main()

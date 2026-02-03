@@ -1,0 +1,53 @@
+{
+  "driver_id": "DRIVER_001",
+  "vehicle_id": "VEH_001",
+  "emergency_contacts": [
+    {
+      "name": "Emergency Contact 1",
+      "phone": "+91XXXXXXXXXX",
+      "email": "emergency1@example.com",
+      "relationship": "Family",
+      "priority": 1
+    },
+    {
+      "name": "Emergency Contact 2", 
+      "phone": "+91XXXXXXXXXX",
+      "email": "emergency2@example.com",
+      "relationship": "Friend",
+      "priority": 2
+    }
+  ],
+  "authorities": {
+    "police_control_room": {
+      "endpoint": "https://police-api.gov.in/alerts",
+      "api_key": "YOUR_POLICE_API_KEY",
+      "enabled": false
+    },
+    "traffic_control": {
+      "endpoint": "https://traffic-control.gov.in/incidents", 
+      "api_key": "YOUR_TRAFFIC_API_KEY",
+      "enabled": false
+    }
+  },
+  "alert_thresholds": {
+    "drowsy_duration": 3.0,
+    "critical_duration": 10.0,
+    "intoxication_confidence": 0.8,
+    "perclos_threshold": 0.8,
+    "mar_yawn_threshold": 0.6
+  },
+  "privacy": {
+    "encrypt_data": true,
+    "anonymize_location": false,
+    "data_retention_days": 30,
+    "local_processing_only": true
+  },
+  "detection_parameters": {
+    "ear_threshold": 0.25,
+    "consecutive_frames": 20,
+    "blink_rate_min": 5,
+    "blink_rate_max": 30,
+    "head_pose_yaw_limit": 30,
+    "head_pose_pitch_limit": 20
+  }
+}

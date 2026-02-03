@@ -35,12 +35,32 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request).catch(() => {
-          // If both cache and network fail, return a custom offline page
-          if (event.request.destination === 'document') {
-            return caches.match('/offline.html');
-          }
-        });
+        if (response) {
+          return response;
+        }
+        
+        // Validate request URL to prevent SSRF
+        const url = new URL(event.request.url);
+        const allowedOrigins = [self.location.origin, 'https://apis.mappls.com'];
+        
+        if (!allowedOrigins.some(origin => url.origin === origin || url.origin.startsWith('http://localhost') || url.origin.startsWith('http://127.0.0.1'))) {
+          return new Response('Forbidden', { status: 403 });
+        }
+        
+        return fetch(event.request)
+          .catch((error) => {
+            console.error('Service Worker: Fetch failed', error);
+            // If both cache and network fail, return a custom offline page
+            if (event.request.destination === 'document') {
+              return caches.match('/offline.html')
+                .catch(() => new Response('Offline', { status: 503 }));
+            }
+            return new Response('Network error', { status: 503 });
+          });
+      })
+      .catch((error) => {
+        console.error('Service Worker: Cache match failed', error);
+        return new Response('Cache error', { status: 500 });
       })
   );
 });

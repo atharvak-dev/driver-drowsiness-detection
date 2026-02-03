@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.*.local
+
+# API keys and credentials
+**/config/*_key.json
+**/config/credentials.json
