@@ -208,6 +208,33 @@ def serve_pwa_files():
     # Inject PWA components
     st.markdown(pwa_head + pwa_js, unsafe_allow_html=True)
 
+def get_ice_servers():
+    """Get ICE servers from Twilio if available, else use free STUN"""
+    # Default free STUN servers
+    ice_servers = [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {"urls": ["stun:stun1.l.google.com:19302"]},
+        {"urls": ["stun:stun2.l.google.com:19302"]},
+    ]
+    
+    # Try to get Twilio credentials from Streamlit secrets
+    try:
+        # Check if secrets are available
+        if hasattr(st, "secrets"):
+            account_sid = st.secrets.get("TWILIO_ACCOUNT_SID")
+            auth_token = st.secrets.get("TWILIO_AUTH_TOKEN")
+            
+            if account_sid and auth_token:
+                from twilio.rest import Client
+                client = Client(account_sid, auth_token)
+                token = client.tokens.create()
+                ice_servers = token.ice_servers
+                # print("✅ Loaded Twilio TURN servers")
+    except Exception as e:
+        print(f"⚠️ Could not fetch Twilio TURN servers: {e}")
+        
+    return ice_servers
+
 # Load alarm
 def play_alarm():
     """Play audio alert using pygame (Cross-platform & Robust)."""
@@ -546,13 +573,7 @@ def render_live_detection():
             video_processor_factory=GuardianDriveDetector,
             media_stream_constraints={"video": True, "audio": False},
             rtc_configuration={
-                "iceServers": [
-                    {"urls": ["stun:stun.l.google.com:19302"]},
-                    {"urls": ["stun:stun1.l.google.com:19302"]},
-                    {"urls": ["stun:stun2.l.google.com:19302"]},
-                    {"urls": ["stun:stun3.l.google.com:19302"]},
-                    {"urls": ["stun:stun4.l.google.com:19302"]},
-                ]
+                "iceServers": get_ice_servers()
             },
             async_processing=True,
         )
