@@ -275,8 +275,11 @@ def play_alarm():
             
             if not played:
                 # Fallback to playsound if installed
-                from playsound import playsound
-                playsound(target_alarm)
+                try:
+                    from playsound import playsound
+                    playsound(target_alarm)
+                except ImportError:
+                    print("⚠️ 'playsound' module is not installed. Audio alert skipped.")
                 
     except Exception as e:
         print(f"❌ Audio alert failed to play: {e}")
