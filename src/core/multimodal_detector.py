@@ -42,9 +42,11 @@ class EnhancedDriverDetector:
         
         # History
         self.blink_history = []
+        self.head_pose_history = [] # For detecting sway
         self.drowsy_frames = 0
         self.alert_frames = 0
         self.last_blink_time = 0
+        self.intoxication_frames = 0  # For temporal smoothing of intoxication detection
         
         # MediaPipe Indices (Subject's Perspective)
         # Left Eye (Subject's Left, Screen Right)
@@ -199,21 +201,39 @@ class EnhancedDriverDetector:
         # Intoxication Logic
         intoxication_score = 0
         
-        # 1. Excessive Head Movement (Nodding/Bobbing)
-        if abs(metrics.head_pose[0]) > 25 or abs(metrics.head_pose[2]) > 25: # Pitch or Roll
-             intoxication_score += 1
-             
-        # 2. Staring (Low Blink Rate) - ONLY after 10s
-        # Estimate blink rate from history
-        start_time = max(0, len(self.blink_history) - 900)
-        recent_history = self.blink_history[start_time:]
-        # Count closures generally
-        closures = len([e for e in recent_history if e < self.ear_threshold])
-        
-        if closures < 5 and len(self.blink_history) > 300:
-            intoxication_score += 1
+        # Update Head Pose History
+        self.head_pose_history.append(metrics.head_pose)
+        if len(self.head_pose_history) > 90: # Keep last 3 seconds
+            self.head_pose_history.pop(0)
+
+        # 1. Head Sway (Variance of movement)
+        # Drunk drivers have significant "bobbing" or swaying heads
+        # Research shows intoxicated drivers exhibit variance > 150, while sober < 50
+        if len(self.head_pose_history) > 30:
+            poses = np.array(self.head_pose_history)
+            pitch_var = np.var(poses[:, 0])
+            roll_var = np.var(poses[:, 2])
             
+            # Threshold increased from 20 to 150 to avoid false positives
+            # from camera noise and natural micro-movements
+            if pitch_var > 150 or roll_var > 150:
+                intoxication_score += 2 # Strong indicator
+        
+        # 2. Excessive Head Offset (Static Nodding/leaning)
+        # Threshold increased from 25 to 40 degrees - normal head tilts are common
+        if abs(metrics.head_pose[0]) > 40 or abs(metrics.head_pose[2]) > 40: 
+             intoxication_score += 1
+        
+        # Temporal smoothing: require sustained intoxication indicators
+        # This prevents single-frame anomalies from triggering false positives
         if intoxication_score >= 2:
+            self.intoxication_frames += 1
+        else:
+            # Decay slowly to handle intermittent detection
+            self.intoxication_frames = max(0, self.intoxication_frames - 1)
+        
+        # Require ~2 seconds (60 frames @ 30fps) of sustained indicators
+        if self.intoxication_frames > 60:
             return DriverState.INTOXICATED
             
         return DriverState.SOBER_ALERT
@@ -252,8 +272,8 @@ class EnhancedDriverDetector:
         # --- NORMAL OPERATION ---
         self.update_blink_rate(ear, current_time)
         
-        ear_history = [ear] * 30 
-        perclos = self.calculate_perclos(ear_history)
+        # Use actual blink history for PERCLOS calculation (not fake repeated values)
+        perclos = self.calculate_perclos(self.blink_history)
         
         # Blink Rate (Approx)
         closures = len([e for e in self.blink_history if e < self.ear_threshold])

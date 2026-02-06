@@ -507,9 +507,13 @@ class GuardianDriveDetector(VideoProcessorBase):
         # Alert indicator
         if state != DriverState.SOBER_ALERT:
             cv2.rectangle(img, (10, 10), (img.shape[1]-10, 50), color, 3)
+            
             if state == DriverState.ASLEEP:
                 cv2.putText(img, "CRITICAL ALERT!", (img.shape[1]//2-100, 35),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+            elif state == DriverState.INTOXICATED:
+                cv2.putText(img, "⚠️ DRIVER IMPAIRED!", (img.shape[1]//2-120, 35),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 3)
 
 # Main Streamlit app
 def main():
