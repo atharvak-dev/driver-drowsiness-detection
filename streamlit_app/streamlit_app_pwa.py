@@ -1044,14 +1044,18 @@ def render_live_detection():
             video_processor_factory=UltraGuardianDetector,
             media_stream_constraints={
                 "video": {
-                    "width": {"ideal": 1280},
-                    "height": {"ideal": 720},
-                    "frameRate": {"ideal": 30}
+                    "width": {"ideal": 640, "max": 1280},
+                    "height": {"ideal": 480, "max": 720},
+                    "frameRate": {"ideal": 15, "max": 30}
                 },
                 "audio": False
             },
-            rtc_configuration={"iceServers": get_ice_servers()},
+            rtc_configuration={
+                "iceServers": get_ice_servers(),
+                "iceTransportPolicy": "all",
+            },
             async_processing=True,
+            mode=WebRtcMode.SENDRECV,
         )
         
         # Poll for updates from the background processor

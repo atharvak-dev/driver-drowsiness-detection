@@ -1,0 +1,43 @@
+{
+  "log_level": "INFO",
+  "log_file": "logs/drowsiness_detector.log",
+  "enable_telemetry": true,
+  "max_fps": 10,
+  "frame_skip": 1,
+  "enable_gpu": true,
+  "save_detections": true,
+  "detection_log_path": "data/detections.jsonl",
+  "max_log_size_mb": 100,
+  "heartbeat_interval_sec": 5.0,
+  "watchdog_timeout_sec": 30.0,
+  
+  "detection": {
+    "ear_threshold": 0.25,
+    "consec_frames": 20,
+    "smoothing_window": 5,
+    "calibration_frames": 100,
+    "calibration_timeout_sec": 30,
+    "perclos_window": 300,
+    "perclos_threshold": 0.15,
+    "alert_cooldown_sec": 5.0,
+    "alert_escalation_threshold": 3,
+    "model_path": "models/face_landmarker.task",
+    "num_faces": 1,
+    "min_detection_confidence": 0.5,
+    "alarm_file": "assets/alarm.wav",
+    "alarm_volume": 0.8,
+    "enable_audio_alerts": true
+  },
+  
+  "vehicle": {
+    "sample_rate_hz": 10,
+    "steering_entropy_threshold": 0.45,
+    "speed_var_threshold": 15.0,
+    "lane_dev_threshold": 0.5,
+    "steering_window_sec": 30.0,
+    "speed_window_sec": 60.0,
+    "enable_fusion": true,
+    "high_risk_score": 0.8,
+    "medium_risk_score": 0.5
+  }
+}
