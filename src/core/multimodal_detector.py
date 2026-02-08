@@ -11,14 +11,15 @@ from scipy.stats import entropy
 # --- CONSTANTS & HELPERS ---
 
 def normalize_angle(angle):
-    """Normalize angle to -180 to 180 range with sanity checks"""
+    """Normalize angle to -180 to 180 range with clamping"""
     while angle > 180:
         angle -= 360
     while angle < -180:
         angle += 360
-    # Physiologically impossible head poses
-    if abs(angle) > 90:
-        return 0.0
+    if angle > 90:
+        return 90.0
+    elif angle < -90:
+        return -90.0
     return angle
 
 def calculate_entropy(data: List[float], bins: int = 10) -> float:
@@ -144,58 +145,68 @@ class AdaptiveVisionAnalyzer:
         except:
             return 0.0
 
-    def estimate_head_pose(self, landmarks, img_shape) -> Tuple[float, float, float]:
-        """Robust head pose estimation with error handling"""
+    def estimate_head_pose_geometric(self, landmarks, img_shape) -> Tuple[float, float, float]:
+        """
+        Robust geometric head pose estimation (Yaw/Pitch only)
+        Uses relative landmark positions instead of unstable PnP solver.
+        Returns: (pitch, yaw, roll) in approximate degrees
+        """
         try:
-            # 3D model points (canonical face)
-            model_points = np.array([
-                (0.0, 0.0, 0.0),           # Nose tip
-                (0.0, -330.0, -65.0),      # Chin
-                (-225.0, 170.0, -135.0),   # Left eye corner
-                (225.0, 170.0, -135.0),    # Right eye corner
-                (-150.0, -150.0, -125.0),  # Left mouth corner
-                (150.0, -150.0, -125.0)    # Right mouth corner
-            ], dtype=np.float64)
+            # Nose tip
+            nose = landmarks[1]
+            # Chin
+            chin = landmarks[152]
+            # Eye corners
+            left_eye_outer = landmarks[263]
+            right_eye_outer = landmarks[33]
+            # Mouth corners
+            left_mouth = landmarks[61]
+            right_mouth = landmarks[291]
+
+            # 1. YAW ESTIMATION (Left/Right turn)
+            # Calculate nose position relative to face width
+            face_width = np.linalg.norm(np.array(left_eye_outer) - np.array(right_eye_outer))
+            if face_width == 0: return (0, 0, 0)
             
-            # 2D image points
-            image_points = np.array([
-                landmarks[1],    # Nose tip
-                landmarks[152],  # Chin
-                landmarks[263],  # Left eye corner
-                landmarks[33],   # Right eye corner
-                landmarks[61],   # Left mouth corner
-                landmarks[291]   # Right mouth corner
-            ], dtype=np.float64)
+            # Midpoint between eyes
+            eye_midpoint = ((left_eye_outer[0] + right_eye_outer[0]) / 2, 
+                           (left_eye_outer[1] + right_eye_outer[1]) / 2)
             
-            # Camera matrix
-            focal_length = img_shape[1]
-            center = (img_shape[1] / 2, img_shape[0] / 2)
-            camera_matrix = np.array([
-                [focal_length, 0, center[0]],
-                [0, focal_length, center[1]],
-                [0, 0, 1]
-            ], dtype=np.float64)
+            # Nose offset from center (normalized by face width)
+            # Positive = Looking Right (User's Left), Negative = Looking Left
+            nose_offset_x = (nose[0] - eye_midpoint[0]) / face_width
             
-            dist_coeffs = np.zeros((4, 1))
+            # Map offset to degrees (approximate)
+            # Offset of 0.0 = 0 degrees (Center)
+            # Offset of 0.15 = ~30 degrees
+            # Offset of 0.30 = ~60 degrees
+            yaw = nose_offset_x * 200  # Scaling factor
             
-            success, rot_vec, trans_vec = cv2.solvePnP(
-                model_points, image_points, camera_matrix, dist_coeffs,
-                flags=cv2.SOLVEPNP_ITERATIVE
-            )
+            # 2. PITCH ESTIMATION (Up/Down)
+            # Calculate nose-to-chin distance vs eye-to-nose distance
+            eye_to_nose = np.linalg.norm(np.array(eye_midpoint) - np.array(nose))
+            nose_to_chin = np.linalg.norm(np.array(nose) - np.array(chin))
             
-            if success:
-                rot_mat, _ = cv2.Rodrigues(rot_vec)
-                angles, _, _, _, _, _ = cv2.RQDecomp3x3(rot_mat)
-                
-                pitch = normalize_angle(angles[0] * 360)
-                yaw = normalize_angle(angles[1] * 360)
-                roll = normalize_angle(angles[2] * 360)
-                
-                return (pitch, yaw, roll)
+            if nose_to_chin == 0: return (0, yaw, 0)
+            
+            ratio = eye_to_nose / nose_to_chin
+            
+            # Normal ratio is around 0.6 - 0.7
+            # Higher ratio (>0.9) = Looking Down (chin gets closer to nose in 2D)
+            # Lower ratio (<0.4) = Looking Up
+            
+            pitch = (ratio - 0.65) * 100
+            
+            return (pitch, yaw, 0.0)
+
         except Exception as e:
-            pass
-            
-        return (0.0, 0.0, 0.0)
+            return (0.0, 0.0, 0.0)
+
+    def estimate_head_pose(self, landmarks, img_shape) -> Tuple[float, float, float]:
+        """Legacy PnP solver - kept for wireframe, but using geometric for logic now"""
+        # ... (keep existing implementation for visualizer, or replace with geometric if better)
+        # For now, let's just use geometric because it's STABLE
+        return self.estimate_head_pose_geometric(landmarks, img_shape)
 
     def detect_phone_use(self, landmarks, img_shape) -> bool:
         """Detect potential phone usage from head angle"""
@@ -468,17 +479,27 @@ class AdaptiveVisionAnalyzer:
         else:
             self.phone_use_counter = max(0, self.phone_use_counter - 1)
             
-        if abs(yaw) > 45 or abs(pitch) > 35:
+        # Distraction detection using GEOMETRIC PROJECTION
+        # Yaw > 50 degrees = Looking sideways
+        
+        # NOTE: Geometric method returns approx degrees centered at 0
+        
+        if abs(yaw) > 50 or abs(pitch) > 35:
+            self.distraction_counter += 3  # Fast increment
+        elif abs(yaw) > 40:
             self.distraction_counter += 1
         else:
-            self.distraction_counter = max(0, self.distraction_counter - 1)
+            # Fast decay
+            self.distraction_counter = max(0, self.distraction_counter - 5)
             
         distraction_score = 0
-        if self.distraction_counter > 90:  # 3 sec sustained
+        if self.distraction_counter > 45:  # ~1.5 sec
             distraction_score = 3
-        elif self.distraction_counter > 30:
+        elif self.distraction_counter > 20:  # ~0.7 sec
             distraction_score = 2
-        elif self.phone_use_counter > 30:
+        elif self.distraction_counter > 10:
+            distraction_score = 1
+        elif self.phone_use_counter > 45:
             distraction_score = 2
             
         signals['distraction'] = distraction_score
@@ -754,8 +775,15 @@ class MultiModalFusionEngine:
         is_drowsy_signal = (perclos > 0.15 or signals.get('yawning', 0) > 1 or
                            signals.get('eye_closure_rate', 0) > 1)
         
-        # Distraction indicators
-        is_distracted = signals.get('distraction', 0) >= 2
+        # Distraction indicators - PRIORITY CHECK for looking away
+        distraction_level = signals.get('distraction', 0)
+        is_distracted = distraction_level >= 2
+        is_severely_distracted = distraction_level >= 3
+        
+        # DISTRACTION HAS PRIORITY when looking completely away
+        # (not closing eyes but turning head away from road)
+        if is_severely_distracted and perclos < 0.2:
+            return DriverState.DISTRACTED
         
         # State determination with clear hierarchy
         if has_extended_closure or (has_severe_closure and has_microsleep):
@@ -766,6 +794,10 @@ class MultiModalFusionEngine:
                 return DriverState.ASLEEP
             else:
                 return DriverState.HIGH_RISK
+        
+        # Distraction check before drowsiness for moderate confidence
+        elif is_distracted and perclos < 0.25:
+            return DriverState.DISTRACTED
                 
         elif confidence > 0.5:
             if is_drowsy_signal:
@@ -776,21 +808,21 @@ class MultiModalFusionEngine:
         elif confidence > 0.3:
             if has_severe_closure:
                 return DriverState.ASLEEP
-            elif is_drowsy_signal:
-                return DriverState.DROWSY
             elif is_distracted:
                 return DriverState.DISTRACTED
+            elif is_drowsy_signal:
+                return DriverState.DROWSY
             else:
                 return DriverState.LOW_RISK
                 
         else:
-            # Safety net for sleep even at low confidence
+            # Low confidence - check distraction first
             if has_severe_closure:
                 return DriverState.ASLEEP
-            elif is_drowsy_signal:
-                return DriverState.DROWSY
             elif is_distracted:
                 return DriverState.DISTRACTED
+            elif is_drowsy_signal:
+                return DriverState.DROWSY
             else:
                 return DriverState.NORMAL
 
