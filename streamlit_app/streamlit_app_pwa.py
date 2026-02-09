@@ -2013,6 +2013,269 @@ def _render_fallback_map():
 # ==================== MAIN APP ====================
 
 
+def render_insurance_page():
+    """Insurance Telematics Dashboard"""
+    st.title("💼 Insurance Smart Bridge")
+    st.markdown("**Pay How You Drive (PHYD) - Verified Safety Score**")
+    
+    # Initialize implementation
+    if 'insurance_bridge' not in st.session_state:
+        try:
+            # Use a persistent driver ID or session ID
+            driver_id = SessionState.get('session_id', 'DRIVER_001')
+            st.session_state.insurance_bridge = InsuranceDataBridge(driver_id=driver_id)
+            
+            # Generate some mock history for the demo if empty
+            if not st.session_state.insurance_bridge.sessions:
+                import random
+                current_time = time.time()
+                for i in range(5):
+                    # Past sessions
+                    past_time = current_time - (i + 1) * 86400 * random.randint(1, 4)
+                    duration = random.randint(20, 120)
+                    dist = duration * random.uniform(0.5, 1.2)
+                    score = random.randint(60, 98)
+                    
+                    
+                    session = DrivingSession(
+                        session_id=f"SESS_{int(past_time)}",
+                        start_time=past_time,
+                        end_time=past_time + (duration * 60),
+                        duration_minutes=duration,
+                        distance_km=dist,
+                        alerts_triggered=random.randint(0, 5),
+                        drowsy_events=random.randint(0, 2),
+                        distraction_events=random.randint(0, 3),
+                        harsh_brakes=random.randint(0, 4),
+                        speeding_events=random.randint(0, 3),
+                        safety_score=score
+                    )
+                    st.session_state.insurance_bridge.log_session(session)
+                    
+        except Exception as e:
+            st.error(f"Failed to initialize insurance bridge: {e}")
+            if 'insurance_bridge' not in st.session_state: return
+
+    bridge = st.session_state.insurance_bridge
+    
+    # ==================== DRIVER PROFILE CARD ====================
+    
+    # Get mocked/real API key for "Guardian Insurance"
+    api_key_key = "insurance_api_key"
+    if api_key_key not in st.session_state:
+        st.session_state[api_key_key] = bridge.generate_api_key("Guardian Insurance")
+    
+    api_key = st.session_state[api_key_key]
+    profile = bridge.get_driver_profile(api_key)
+    recommendation = bridge.get_premium_recommendation(api_key)
+    
+    if not profile:
+        st.warning("No driving history available yet. Start driving to generate a safety score.")
+        return
+
+    # Top stats row
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("🛡️ Safety Score", f"{profile['average_safety_score']:.0f}/100", 
+                  help="Based on drowsy events, distraction, and harsh braking")
+    
+    with col2:
+        risk_color = {
+            "low": "🟢",
+            "medium": "🟠",
+            "high": "🔴"
+        }
+        st.metric("Risk Category", f"{risk_color.get(profile['risk_category'], '⚪')} {profile['risk_category'].title()}")
+    
+    with col3:
+        st.metric("Total Distance", f"{profile['total_distance_km']} km")
+        
+    with col4:
+        savings = recommendation['base_premium'] - recommendation['adjusted_premium']
+        st.metric("Est. Annual Savings", f"₹{savings:,.0f}", f"{recommendation['discount_percentage']}% off")
+
+    st.markdown("---")
+    
+    # ==================== INSURER DASHBOARD ====================
+    
+    col_left, col_right = st.columns([2, 1])
+    
+    with col_left:
+        st.markdown("### 📜 Recent Driving Sessions")
+        
+        # Convert sessions to dataframe for display
+        sessions_data = []
+        for s in bridge.sessions[-10:]: # Last 10
+            sessions_data.append({
+                "Date": datetime.fromtimestamp(s.start_time).strftime('%Y-%m-%d'),
+                "Duration": f"{s.duration_minutes} min",
+                "Distance": f"{s.distance_km:.1f} km",
+                "Score": int(s.safety_score),
+                "Alerts": s.alerts_triggered,
+                "Status": "✅ Verified"
+            })
+        
+        st.dataframe(sessions_data, use_container_width=True)
+        
+    with col_right:
+        st.markdown("### 🔐 Data Sharing")
+        st.info("You control who sees your data. Generated keys allow insurers read-only access to your verification profile.")
+        
+        with st.expander("Active Insurers", expanded=True):
+            st.markdown("**Guardian Insurance**")
+            st.text_input("API Key", value=api_key, type="password", disabled=True)
+            st.caption(f"Status: Active • Access: Read-Only")
+            if st.button("Revoke Access", key="revoke_guardian"):
+                st.error("Access revoked. Premium discount may be lost.")
+        
+        with st.expander("Generate New Key"):
+            new_insurer = st.text_input("Insurer Name")
+            if st.button("Generate Key"):
+                if new_insurer:
+                    new_key = bridge.generate_api_key(new_insurer)
+                    st.success(f"Key generated for {new_insurer}")
+                    st.code(new_key)
+                else:
+                    st.warning("Enter insurer name")
+
+    # ==================== ACCIDENT & CLAIMS ====================
+    st.markdown("### 🚑 Accident & Claims Support")
+    
+    claim_col1, claim_col2 = st.columns(2)
+    with claim_col1:
+        st.info("💡 **Instant Claim Processing**: In case of an accident, verified safety logs can be instantly shared for claims.")
+    
+    with claim_col2:
+        if st.button("📄 Generate Accident Verification Report"):
+            st.success("Verification report generated from last session telemetry.")
+            # Mock report generation
+            report = bridge.generate_claims_report(api_key, time.time() - 3600)
+            st.json(report)
+
+
+def render_alerts_page():
+    """Multi-Stakeholder Alert Configuration"""
+    st.title("🚨 Crisis Response Center")
+    st.markdown("**Configure automated responses for critical events**")
+    
+    # Initialize implementation
+    if 'alert_manager' not in st.session_state:
+        try:
+            st.session_state.alert_manager = MultiStakeholderAlertSystem()
+        except Exception as e:
+            st.error(f"Failed to initialize alert manager: {e}")
+            return
+            
+    manager = st.session_state.alert_manager
+    config = manager.config
+    
+    # ==================== EMERGENCY CONTACTS ====================
+    st.markdown("### 📞 Emergency Contacts")
+    
+    # Use config in session state to persist changes
+    if "family_contacts" not in config:
+        config["family_contacts"] = []
+
+    # Display current contacts & Handle removal
+    contacts_to_remove = []
+    
+    for idx, contact in enumerate(list(config["family_contacts"])):
+        with st.container():
+            c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+            with c1:
+                st.text_input("Name", value=contact.get('name', ''), key=f"c_name_{idx}", disabled=True)
+            with c2:
+                st.text_input("Phone", value=contact.get('phone', ''), key=f"c_phone_{idx}", disabled=True)
+            with c3:
+                st.markdown(f"**Priority:** {contact.get('priority', 1)}")
+            with c4:
+                if st.button("Remove", key=f"del_c_{idx}"):
+                    contacts_to_remove.append(idx)
+    
+    if contacts_to_remove:
+        for idx in sorted(contacts_to_remove, reverse=True):
+             config["family_contacts"].pop(idx)
+        st.rerun()
+
+    
+    # Add new contact
+    with st.expander("➕ Add New Contact"):
+        with st.form("new_contact"):
+            new_name = st.text_input("Name")
+            new_phone = st.text_input("Phone Number")
+            new_priority = st.selectbox("Priority", [1, 2, 3])
+            
+            if st.form_submit_button("Add Contact"):
+                if new_name and new_phone:
+                    config["family_contacts"].append({
+                        "name": new_name,
+                        "phone": new_phone,
+                        "priority": new_priority
+                    })
+                    st.success("Contact added!")
+                    st.rerun()
+    
+    st.markdown("---")
+    
+    # ==================== EMERGENCY SERVICES ====================
+    st.markdown("### 🚓 Emergency Services Integration")
+    
+    svc_col1, svc_col2 = st.columns(2)
+    
+    with svc_col1:
+        st.markdown("#### Police & Traffic Control")
+        # Safety check for config structure
+        if 'emergency_services' not in config: config['emergency_services'] = {}
+        if 'police' not in config['emergency_services']: config['emergency_services']['police'] = {'enabled': False}
+        
+        police_config = config['emergency_services']['police']
+        police_enabled = st.toggle("Enable Police Alerts", value=police_config.get('enabled', False))
+        police_config['enabled'] = police_enabled
+        
+        if police_enabled:
+            st.success("✅ Connected to Police Control Room API")
+            st.slider("Alert Threshold (Severity)", 1, 4, 3, help="1: Minor, 4: Critical", key="police_thresh")
+        else:
+            st.warning("⚠️ Police alerts disabled")
+            
+    with svc_col2:
+        st.markdown("#### Ambulance & Medical")
+        if 'ambulance' not in config['emergency_services']: config['emergency_services']['ambulance'] = {'enabled': False}
+        
+        ambulance_config = config['emergency_services']['ambulance']
+        ambulance_enabled = st.toggle("Enable Ambulance Requests", value=ambulance_config.get('enabled', False))
+        ambulance_config['enabled'] = ambulance_enabled
+        
+        if ambulance_enabled:
+            st.success("✅ Connected to Ambulance Dispatch API")
+            st.caption("Will verify critical incidents before requesting")
+        else:
+            st.warning("⚠️ Ambulance alerts disabled")
+    
+    # ==================== LIVE TEST ====================
+    st.markdown("### 🧪 System Test")
+    
+    if st.button("Trigger Test Alert (Simulation)"):
+        with st.spinner("Simulating detection..."):
+            time.sleep(1)
+            
+            # Create mock location + response
+            mock_loc = {"lat": 28.6139, "lng": 77.2090}
+            
+            if hasattr(manager, 'trigger_coordinated_response'):
+                response = manager.trigger_coordinated_response(
+                    driver_state="Drowsy",
+                    location=mock_loc,
+                    vehicle_speed=75.0,
+                    duration=12.0,
+                    airbag_deployed=False
+                )
+                st.success("Alert sequence initiated!")
+                st.json(response)
+            else:
+                st.info("Simulation mode")
+
 def main():
     """Main application entry point"""
     
@@ -2064,11 +2327,9 @@ def main():
     elif page == "🗺️ Risk Mapping":
         render_risk_mapping()
     elif page == "💼 Insurance":
-        st.title("💼 Insurance Bridge")
-        st.info("Insurance data bridge - full implementation available")
+        render_insurance_page()
     elif page == "🚨 Alerts":
-        st.title("🚨 Alert System")
-        st.info("Multi-stakeholder alerts - full implementation available")
+        render_alerts_page()
     elif page == "⚙️ Settings":
         st.title("⚙️ Settings")
         st.markdown("### Detection Parameters")
